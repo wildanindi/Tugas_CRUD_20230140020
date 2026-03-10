@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi KTP</title>
+    <!-- Ini CDN JQuery yang diminta di soal -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; background-color: #f4f4f9; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h2 { text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; color: white; }
+        .btn-save { background-color: #28a745; }
+        .btn-reset { background-color: #6c757d; display: none; margin-left: 5px; }
+        .btn-edit { background-color: #ffc107; color: black; padding: 5px 10px; }
+        .btn-delete { background-color: #dc3545; padding: 5px 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 25px; }
+        table, th, td { border: 1px solid #ddd; }
+        th, td { padding: 10px; text-align: left; }
+        th { background-color: #007bff; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Manajemen Data KTP</h2>
+
+    <!-- Form Input Data -->
+    <div id="ktpForm">
+        <!-- Hidden input buat nyimpen ID kalau lagi mode Edit -->
+        <input type="hidden" id="ktpId">
+
+        <div class="form-group">
+            <label>Nomor KTP</label>
+            <input type="text" id="nomorKtp" placeholder="Masukkan NIK" required>
+        </div>
+        <div class="form-group">
+            <label>Nama Lengkap</label>
+            <input type="text" id="namaLengkap" placeholder="Masukkan Nama Lengkap" required>
+        </div>
+        <div class="form-group">
+            <label>Alamat</label>
+            <input type="text" id="alamat" placeholder="Masukkan Alamat" required>
+        </div>
+        <div class="form-group">
+            <label>Tanggal Lahir</label>
+            <input type="date" id="tanggalLahir" required>
+        </div>
+        <div class="form-group">
+            <label>Jenis Kelamin</label>
+            <select id="jenisKelamin">
+                <option value="Laki-laki">Laki-laki</option>
+                <option value="Perempuan">Perempuan</option>
+            </select>
+        </div>
+        <button class="btn-save" id="btnSave">Simpan Data</button>
+        <button class="btn-reset" id="btnReset">Batal Edit</button>
+    </div>
+
+    <!-- Tabel Data KTP -->
+    <table>
+        <thead>
+        <tr>
+            <th>No. KTP</th>
+            <th>Nama Lengkap</th>
+            <th>Alamat</th>
+            <th>Tgl Lahir</th>
+            <th>Jenis Kelamin</th>
+            <th>Aksi</th>
+        </tr>
+        </thead>
+        <tbody id="tableBody">
+        <!-- Data dari database bakal muncul di sini otomatis -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // URL Endpoint API Spring Boot kita
+    const API_URL = "http://localhost:8080/ktp";
+
+    // Pas halaman pertama kali dibuka, langsung load data
+    $(document).ready(function() {
+        loadData();
+
+        // Kalau tombol simpan diklik
+        $("#btnSave").click(function() {
+            saveData();
+        });
+
+        // Kalau tombol batal edit diklik
+        $("#btnReset").click(function() {
+            resetForm();
+        });
+    });
+
+    // 1. GET: Fungsi buat ngambil semua data
+    function loadData() {
+        $.ajax({
+            url: API_URL,
+            type: "GET",
+            success: function(response) {
+                let html = "";
+                $.each(response, function(index, ktp) {
+                    html += `<tr>
+                        <td>${ktp.nomorKtp}</td>
+                        <td>${ktp.namaLengkap}</td>
+                        <td>${ktp.alamat}</td>
+                        <td>${ktp.tanggalLahir}</td>
+                        <td>${ktp.jenisKelamin}</td>
+                        <td>
+                            <button class="btn-edit" onclick="editData(${ktp.id})">Edit</button>
+                            <button class="btn-delete" onclick="deleteData(${ktp.id})">Hapus</button>
+                        </td>
+                    </tr>`;
+                });
+                $("#tableBody").html(html);
+            },
+            error: function() {
+                alert("Gagal memuat data dari server!");
+            }
+        });
+    }
+
+    // 2. POST & PUT: Fungsi buat nyimpen data baru atau update data lama
+    function saveData() {
+        const id = $("#ktpId").val();
+
+        // Kumpulin data dari form jadi format JSON
+        const ktpData = {
+            nomorKtp: $("#nomorKtp").val(),
+            namaLengkap: $("#namaLengkap").val(),
+            alamat: $("#alamat").val(),
+            tanggalLahir: $("#tanggalLahir").val(),
+            jenisKelamin: $("#jenisKelamin").val()
+        };
+
+        // Kalau ID ada isinya berarti PUT (Update), kalau kosong berarti POST (Simpan Baru)
+        const type = id ? "PUT" : "POST";
+        const url = id ? `${API_URL}/${id}` : API_URL;
+
+        $.ajax({
+            url: url,
+            type: type,
+            contentType: "application/json",
+            data: JSON.stringify(ktpData),
+            success: function(response) {
+                alert(id ? "Data berhasil diupdate!" : "Data berhasil ditambahkan!");
+                resetForm();
+                loadData(); // Refresh tabel otomatis (tanpa reload halaman)
+            },
+            error: function(xhr) {
+                alert("Error: " + (xhr.responseJSON?.message || "Gagal menyimpan data"));
+            }
+        });
+    }
+
+    // 3. GET (by ID): Fungsi pas tombol Edit diklik, nampilin data di form
+    function editData(id) {
+        $.ajax({
+            url: `${API_URL}/${id}`,
+            type: "GET",
+            success: function(ktp) {
+                $("#ktpId").val(ktp.id);
+                $("#nomorKtp").val(ktp.nomorKtp);
+                $("#namaLengkap").val(ktp.namaLengkap);
+                $("#alamat").val(ktp.alamat);
+                $("#tanggalLahir").val(ktp.tanggalLahir);
+                $("#jenisKelamin").val(ktp.jenisKelamin);
+
+                $("#btnSave").text("Update Data");
+                $("#btnReset").show();
+            }
+        });
+    }
+
+    // 4. DELETE: Fungsi buat ngehapus data
+    function deleteData(id) {
+        if (confirm("Yakin mau hapus data KTP ini?")) {
+            $.ajax({
+                url: `${API_URL}/${id}`,
+                type: "DELETE",
+                success: function(response) {
+                    alert(response); // Nampilin pesan dari backend
+                    loadData(); // Refresh tabel
+                },
+                error: function() {
+                    alert("Gagal menghapus data!");
+                }
+            });
+        }
+    }
+
+    // Fungsi tambahan buat ngosongin form
+    function resetForm() {
+        $("#ktpId").val("");
+        $("#nomorKtp").val("");
+        $("#namaLengkap").val("");
+        $("#alamat").val("");
+        $("#tanggalLahir").val("");
+        $("#jenisKelamin").val("Laki-laki");
+
+        $("#btnSave").text("Simpan Data");
+        $("#btnReset").hide();
+    }
+</script>
+
+</body>
+</html>
